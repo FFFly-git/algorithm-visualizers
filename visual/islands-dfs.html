@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>🏝️ 岛屿数量 - DFS 全过程探索（布局优化版）</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            padding: 20px;
+            background: #fafafa;
+            color: #212121;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 25px;
+            border-radius: 14px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #0d47a1;
+            margin-bottom: 10px;
+        }
+
+        /* 网格容器：水平排列 */
+        .grids-container {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .grid-panel {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .grid-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #1976d2;
+            font-size: 16px;
+        }
+        .grid {
+            display: grid;
+            gap: 3px;
+            margin: 0 auto;
+        }
+        .cell {
+            width: 32px;          /* 缩小方格 */
+            height: 32px;
+            border: 1px solid #9e9e9e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;       /* 字体略小 */
+            transition: all 0.3s ease;
+            border-radius: 3px;
+            position: relative;
+        }
+        .cell.original-land { background: #4caf50; color: white; }
+        .cell.original-water { background: #bbdefb; color: #0d47a1; }
+        .cell.visited-unvisited { background: #f5f5f5; color: #9e9e9e; }
+        .cell.visited-checked { background: #e0e0e0; color: #212121; font-weight: bold; }
+        .cell.highlight-current { transform: scale(1.15); border-color: #ff9800; z-index: 10; }
+        .cell.highlight-neighbor { transform: scale(1.1); border-color: #f44336; box-shadow: 0 0 5px #f44336; }
+
+        /* 方向面板 */
+        .direction-panel {
+            margin: 20px 0;
+            padding: 12px;
+            background: #f3e5f5;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .direction-title {
+            font-weight: bold;
+            color: #7b1fa2;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+        .directions {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            width: 100px;
+            height: 100px;
+            margin: 0 auto;
+            gap: 3px;
+        }
+        .dir-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            background: #e1bee7;
+            border-radius: 3px;
+        }
+        .dir-center {
+            background: #9c27b0;
+            color: white;
+        }
+        .dir-active {
+            background: #f44336 !important;
+            color: white !important;
+            transform: scale(1.1);
+        }
+
+        /* 栈面板 */
+        .stack-panel {
+            margin: 20px 0;
+            padding: 12px;
+            background: #f9f9f9;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+        }
+        .stack-title {
+            font-weight: bold;
+            color: #d32f2f;
+            margin-bottom: 8px;
+            text-align: center;
+            font-size: 15px;
+        }
+        .stack-display {
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px;
+            background: #ffffff;
+            border-radius: 6px;
+            overflow-x: auto;
+            justify-content: flex-start;
+        }
+        .stack-item {
+            width: 52px;
+            padding: 5px 0;
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 3px;
+            text-align: center;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .stack-item.top {
+            background: #2196f3;
+            color: white;
+            font-weight: bold;
+            transform: translateY(-2px);
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: center;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .log {
+            min-height: 60px;
+            padding: 14px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 12px 24px;
+            font-size: 17px;
+            background: #0d47a1;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover:not(:disabled) { background: #1565c0; }
+        button:disabled {
+            background: #9e9e9e;
+            cursor: not-allowed;
+        }
+        .result-panel {
+            text-align: center;
+            margin-top: 15px;
+            padding: 14px;
+            background: #e8f5e9;
+            border-radius: 8px;
+            font-size: 17px;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+        .phase {
+            text-align: center;
+            font-weight: bold;
+            color: #d32f2f;
+            font-size: 17px;
+            margin: 12px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏝️ 岛屿数量 - DFS 全过程探索（布局优化版）</h1>
+
+        <div class="phase" id="phaseTitle">阶段：初始化</div>
+
+        <!-- 水平排列：原始网格 + 访问网格 -->
+        <div class="grids-container">
+            <div class="grid-panel">
+                <div class="grid-title">原始网格</div>
+                <div class="grid" id="originalGrid"></div>
+            </div>
+            <div class="grid-panel">
+                <div class="grid-title">访问状态网格</div>
+                <div class="grid" id="visitedGrid"></div>
+            </div>
+        </div>
+
+        <div class="direction-panel">
+            <div class="direction-title">当前探索方向（中心 = 当前节点）</div>
+            <div class="directions" id="directionDisplay">
+                <div class="dir-cell"></div>
+                <div class="dir-cell" id="dir-up">↑</div>
+                <div class="dir-cell"></div>
+                
+                <div class="dir-cell" id="dir-left">←</div>
+                <div class="dir-cell dir-center" id="dir-center">●</div>
+                <div class="dir-cell" id="dir-right">→</div>
+                
+                <div class="dir-cell"></div>
+                <div class="dir-cell" id="dir-down">↓</div>
+                <div class="dir-cell"></div>
+            </div>
+        </div>
+
+        <div class="stack-panel">
+            <div class="stack-title">DFS 调用栈（横向，栈顶在最右）</div>
+            <div class="stack-display" id="stackDisplay"></div>
+        </div>
+
+        <div class="info-box">
+            <div>🟢 陆地 = '1' &nbsp;&nbsp; 🔵 水 = '0'</div>
+            <div>⚫ 未访问 = '.' &nbsp;&nbsp; ✅ 已访问 = '✓'</div>
+            <div>🟠 当前节点 &nbsp;&nbsp; 🔴 正在检查的邻居</div>
+        </div>
+
+        <div class="log" id="log">点击下方按钮开始动画</div>
+
+        <button id="startBtn" onclick="startFullAnimation()">▶️ 开始动画</button>
+
+        <div class="result-panel" id="resultPanel">
+            最终岛屿数量：—
+        </div>
+    </div>
+
+    <script>
+        const originalGridData = [
+            ["1","1","0","0","0"],
+            ["1","1","0","0","0"],
+            ["0","0","1","0","0"],
+            ["0","0","0","1","1"]
+        ];
+        let visited = [];
+        const rows = originalGridData.length;
+        const cols = originalGridData[0].length;
+        let islandCount = 0;
+        let callStack = [];
+
+        const dirs = [
+            { dx: -1, dy: 0, name: '上', id: 'dir-up' },
+            { dx: 1, dy: 0, name: '下', id: 'dir-down' },
+            { dx: 0, dy: -1, name: '左', id: 'dir-left' },
+            { dx: 0, dy: 1, name: '右', id: 'dir-right' }
+        ];
+
+        const originalGridEl = document.getElementById('originalGrid');
+        const visitedGridEl = document.getElementById('visitedGrid');
+        const stackDisplay = document.getElementById('stackDisplay');
+        const logEl = document.getElementById('log');
+        const phaseTitle = document.getElementById('phaseTitle');
+        const resultPanel = document.getElementById('resultPanel');
+        const startBtn = document.getElementById('startBtn');
+
+        function initGrids() {
+            // 原始网格
+            originalGridEl.innerHTML = '';
+            originalGridEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    if (originalGridData[i][j] === '1') {
+                        cell.classList.add('original-land');
+                    } else {
+                        cell.classList.add('original-water');
+                    }
+                    cell.textContent = originalGridData[i][j];
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    originalGridEl.appendChild(cell);
+                }
+            }
+
+            // 访问网格
+            visitedGridEl.innerHTML = '';
+            visitedGridEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell visited-unvisited';
+                    cell.textContent = '.';
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    visitedGridEl.appendChild(cell);
+                }
+            }
+        }
+
+        function getOriginalCell(i, j) {
+            return document.querySelector(`#originalGrid .cell[data-row="${i}"][data-col="${j}"]`);
+        }
+        function getVisitedCell(i, j) {
+            return document.querySelector(`#visitedGrid .cell[data-row="${i}"][data-col="${j}"]`);
+        }
+
+        function resetDirectionPanel() {
+            dirs.forEach(d => {
+                document.getElementById(d.id).classList.remove('dir-active');
+            });
+        }
+
+        function activateDirection(dirIndex) {
+            resetDirectionPanel();
+            if (dirIndex >= 0 && dirIndex < dirs.length) {
+                document.getElementById(dirs[dirIndex].id).classList.add('dir-active');
+            }
+        }
+
+        function updateStackDisplay() {
+            stackDisplay.innerHTML = '';
+            for (let idx = 0; idx < callStack.length; idx++) {
+                const [i, j] = callStack[idx];
+                const item = document.createElement('div');
+                item.className = 'stack-item';
+                if (idx === callStack.length - 1) {
+                    item.classList.add('top');
+                }
+                item.textContent = `(${i},${j})`;
+                stackDisplay.appendChild(item);
+            }
+        }
+
+        function log(text) {
+            logEl.textContent = text;
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function dfs(i, j, islandId) {
+            callStack.push([i, j]);
+            updateStackDisplay();
+            const origCell = getOriginalCell(i, j);
+            const visCell = getVisitedCell(i, j);
+            origCell.classList.add('highlight-current');
+            visCell.classList.add('highlight-current');
+            log(`入栈 (${i}, ${j}) —— 岛屿 ${islandId}`);
+            await sleep(1200);
+
+            visited[i][j] = true;
+            visCell.textContent = '✓';
+            visCell.classList.remove('visited-unvisited', 'highlight-current');
+            visCell.classList.add('visited-checked');
+
+            for (let idx = 0; idx < dirs.length; idx++) {
+                const { dx, dy, name } = dirs[idx];
+                const ni = i + dx, nj = j + dy;
+
+                activateDirection(idx);
+                log(`尝试方向【${name}】→ 检查邻居 (${ni}, ${nj})`);
+                await sleep(800);
+
+                let neighborOrigCell = null;
+                if (ni >= 0 && ni < rows && nj >= 0 && nj < cols) {
+                    neighborOrigCell = getOriginalCell(ni, nj);
+                    neighborOrigCell.classList.add('highlight-neighbor');
+                    await sleep(600);
+                }
+
+                let reason = null;
+                if (ni < 0 || ni >= rows || nj < 0 || nj >= cols) {
+                    reason = "越界";
+                } else if (originalGridData[ni][nj] !== '1') {
+                    reason = "是水";
+                } else if (visited[ni][nj]) {
+                    reason = "已访问";
+                }
+
+                if (reason) {
+                    log(`→ 拒绝：${reason}`);
+                    await sleep(800);
+                } else {
+                    log(`→ 接受：递归进入 (${ni}, ${nj})`);
+                    await sleep(800);
+                    await dfs(ni, nj, islandId);
+                }
+
+                if (neighborOrigCell) {
+                    neighborOrigCell.classList.remove('highlight-neighbor');
+                }
+            }
+
+            resetDirectionPanel();
+            callStack.pop();
+            updateStackDisplay();
+            origCell.classList.remove('highlight-current');
+            log(`出栈 (${i}, ${j}) ← 回退`);
+            await sleep(800);
+        }
+
+        async function startFullAnimation() {
+            startBtn.disabled = true;
+            islandCount = 0;
+            visited = Array(rows).fill().map(() => Array(cols).fill(false));
+            callStack = [];
+            initGrids();
+            resetDirectionPanel();
+            resultPanel.textContent = "最终岛屿数量：—";
+            log("准备开始动画...");
+
+            phaseTitle.textContent = "阶段：DFS 全过程探索";
+            log("开始扫描网格，寻找新岛屿...");
+
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    if (originalGridData[i][j] === '1' && !visited[i][j]) {
+                        islandCount++;
+                        log(`发现新岛屿！从 (${i}, ${j}) 启动 DFS（岛屿 ${islandCount}）`);
+                        await sleep(1500);
+                        await dfs(i, j, islandId = islandCount);
+                        log(`✅ 岛屿 ${islandCount} 遍历完成`);
+                        await sleep(1000);
+                    }
+                }
+            }
+
+            phaseTitle.textContent = "🎉 完成！";
+            resultPanel.textContent = `最终岛屿数量：${islandCount}`;
+            log(`共找到 ${islandCount} 个岛屿！`);
+            startBtn.disabled = false;
+        }
+
+        window.onload = initGrids;
+    </script>
+</body>
+</html>
