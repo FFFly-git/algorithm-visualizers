@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数独求解动画演示 - 回溯算法可视化</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .sudoku-board {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        /* 主网格：3x3 宫格 */
+        .board-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 4px; /* 宫格之间的间隙 = 边框宽度 */
+            border: 2px solid white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        /* 每个宫格：3x3 单元格 */
+        .box {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 1px; /* 单元格之间细线 */
+            background: rgba(255,255,255,0.3); /* 宫格背景作为“粗边框” */
+        }
+
+        .cell {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            background: rgba(0,0,0,0.2);
+            cursor: default;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .cell.highlight {
+            background: rgba(255, 255, 0, 0.4);
+            box-shadow: 0 0 12px yellow;
+            z-index: 10;
+        }
+
+        .cell.conflict {
+            background: rgba(255, 0, 0, 0.3);
+            color: #ff6b6b;
+            animation: shake 0.5s;
+        }
+
+        .cell.success {
+            background: rgba(0, 255, 0, 0.3);
+            color: #4cd964;
+        }
+
+        .cell.fixed {
+            color: white;
+            font-weight: bold;
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(76, 217, 100, 0.7); }
+            70% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(76, 217, 100, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(76, 217, 100, 0); }
+        }
+
+        .controls {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            min-width: 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        button {
+            background: #4cd964;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            margin: 0;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 80px;
+        }
+
+        button:hover:not(:disabled) {
+            background: #34c759;
+            transform: scale(1.03);
+        }
+
+        button:disabled {
+            background: #aaa;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .speed-control label {
+            white-space: nowrap;
+        }
+
+        .speed-control input {
+            flex: 1;
+        }
+
+        .log-area {
+            margin-top: 10px;
+            max-height: 180px;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.2);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .step-info {
+            font-size: 18px;
+            margin-bottom: 12px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        p {
+            text-align: center;
+            max-width: 600px;
+            margin-bottom: 20px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎮 数独求解动画演示</h1>
+    <p>可视化回溯算法：逐格探索、冲突回退、成功填充 —— 慢速播放助你彻底理解！</p>
+
+    <div class="container">
+        <div class="sudoku-board">
+            <div class="step-info">步骤: <span id="step-count">0</span></div>
+            <div class="board-grid" id="sudoku-grid"></div>
+        </div>
+
+        <div class="controls">
+            <div class="button-group">
+                <button id="start-btn">▶️ 开始</button>
+                <button id="pause-btn" disabled>⏸️ 暂停</button>
+                <button id="step-btn" disabled>⏭️ 单步</button>
+                <button id="reset-btn">🔄 重置</button>
+            </div>
+
+            <div class="speed-control">
+                <label>速度:</label>
+                <input type="range" id="speed-slider" min="100" max="2000" value="800" step="100">
+                <span id="speed-value">800ms</span>
+            </div>
+
+            <div class="log-area" id="log-area">
+                <!-- 日志动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 初始数独板（可修改）
+        const initialBoard = [
+            ['5','3','.','.','7','.','.','.','.'],
+            ['6','.','.','1','9','5','.','.','.'],
+            ['.','9','8','.','.','.','.','6','.'],
+            ['8','.','.','.','6','.','.','.','3'],
+            ['4','.','.','8','.','3','.','.','1'],
+            ['7','.','.','.','2','.','.','.','6'],
+            ['.','6','.','.','.','.','2','8','.'],
+            ['.','.','.','4','1','9','.','.','5'],
+            ['.','.','.','.','8','.','.','7','9']
+        ];
+
+        // DOM 元素
+        const grid = document.getElementById('sudoku-grid');
+        const stepCount = document.getElementById('step-count');
+        const logArea = document.getElementById('log-area');
+        const startBtn = document.getElementById('start-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const stepBtn = document.getElementById('step-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const speedSlider = document.getElementById('speed-slider');
+        const speedValue = document.getElementById('speed-value');
+
+        // 状态变量
+        let currentStep = 0;
+        let isSolving = false;
+        let isPaused = false;
+        let isStepMode = false;
+        let animationQueue = [];
+        let animationTimeout = null;
+        let board = [];
+        let rowUsed = Array(9).fill().map(() => Array(9).fill(false));
+        let colUsed = Array(9).fill().map(() => Array(9).fill(false));
+        let boxUsed = Array(9).fill().map(() => Array(9).fill(false));
+
+        // 动作类型
+        const ACTION = {
+            HIGHLIGHT: 'highlight',
+            TRY: 'try',
+            SUCCESS: 'success',
+            BACKTRACK: 'backtrack',
+            FINISH: 'finish'
+        };
+
+        // 创建网格（使用 3x3 宫格结构）
+        function createGrid() {
+            grid.innerHTML = '';
+            // 创建 3x3 宫格
+            for (let boxRow = 0; boxRow < 3; boxRow++) {
+                for (let boxCol = 0; boxCol < 3; boxCol++) {
+                    const box = document.createElement('div');
+                    box.className = 'box';
+                    // 在每个宫格内创建 3x3 单元格
+                    for (let r = 0; r < 3; r++) {
+                        for (let c = 0; c < 3; c++) {
+                            const i = boxRow * 3 + r;
+                            const j = boxCol * 3 + c;
+                            const cell = document.createElement('div');
+                            cell.className = 'cell';
+                            cell.dataset.row = i;
+                            cell.dataset.col = j;
+                            if (board[i][j] !== '.') {
+                                cell.textContent = board[i][j];
+                                cell.classList.add('fixed');
+                            }
+                            box.appendChild(cell);
+                        }
+                    }
+                    grid.appendChild(box);
+                }
+            }
+        }
+
+        // 获取单元格（保持不变）
+        function getCell(row, col) {
+            return document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+        }
+
+        // 清除高亮
+        function clearHighlights() {
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.classList.remove('highlight', 'conflict', 'success');
+            });
+        }
+
+        // 添加日志
+        function addLog(message) {
+            const logEntry = document.createElement('div');
+            logEntry.textContent = message;
+            logArea.appendChild(logEntry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // 初始化已用数字
+        function initUsed() {
+            rowUsed = Array(9).fill().map(() => Array(9).fill(false));
+            colUsed = Array(9).fill().map(() => Array(9).fill(false));
+            boxUsed = Array(9).fill().map(() => Array(9).fill(false));
+            for (let i = 0; i < 9; i++) {
+                for (let j = 0; j < 9; j++) {
+                    if (board[i][j] !== '.') {
+                        const num = board[i][j] - '1';
+                        const k = Math.floor(i / 3) * 3 + Math.floor(j / 3);
+                        rowUsed[i][num] = true;
+                        colUsed[j][num] = true;
+                        boxUsed[k][num] = true;
+                    }
+                }
+            }
+        }
+
+        // 求解并记录动画步骤
+        function solveWithAnimation() {
+            animationQueue = [];
+            currentStep = 0;
+            stepCount.textContent = '0';
+            logArea.innerHTML = '';
+            addLog("开始求解数独...");
+
+            function backtrack(i, j) {
+                if (i === 9) {
+                    animationQueue.push({ type: ACTION.FINISH });
+                    return true;
+                }
+                if (j === 9) {
+                    return backtrack(i + 1, 0);
+                }
+                if (board[i][j] !== '.') {
+                    return backtrack(i, j + 1);
+                }
+
+                const k = Math.floor(i / 3) * 3 + Math.floor(j / 3);
+                animationQueue.push({ type: ACTION.HIGHLIGHT, i, j });
+
+                for (let num = 0; num < 9; num++) {
+                    if (rowUsed[i][num] || colUsed[j][num] || boxUsed[k][num]) {
+                        animationQueue.push({ type: ACTION.TRY, i, j, num, valid: false });
+                        continue;
+                    }
+
+                    // 尝试填入
+                    board[i][j] = String(num + 1);
+                    rowUsed[i][num] = true;
+                    colUsed[j][num] = true;
+                    boxUsed[k][num] = true;
+                    animationQueue.push({ type: ACTION.TRY, i, j, num, valid: true });
+
+                    if (backtrack(i, j + 1)) {
+                        animationQueue.push({ type: ACTION.SUCCESS, i, j, num });
+                        return true;
+                    }
+
+                    // 回溯
+                    board[i][j] = '.';
+                    rowUsed[i][num] = false;
+                    colUsed[j][num] = false;
+                    boxUsed[k][num] = false;
+                    animationQueue.push({ type: ACTION.BACKTRACK, i, j, num });
+                }
+                return false;
+            }
+
+            backtrack(0, 0);
+        }
+
+        // 播放下一动画
+        function playNextAnimation() {
+            if (!isSolving || isPaused) return;
+
+            if (animationQueue.length === 0) {
+                isSolving = false;
+                updateControlButtons();
+                return;
+            }
+
+            const action = animationQueue.shift();
+            currentStep++;
+            stepCount.textContent = currentStep;
+
+            const handleAction = () => {
+                switch (action.type) {
+                    case ACTION.HIGHLIGHT:
+                        clearHighlights();
+                        const cell = getCell(action.i, action.j);
+                        cell.classList.add('highlight');
+                        addLog(`🔍 探索格子 (${action.i+1},${action.j+1})`);
+                        break;
+
+                    case ACTION.TRY:
+                        const tryCell = getCell(action.i, action.j);
+                        tryCell.textContent = action.num + 1;
+                        if (!action.valid) {
+                            tryCell.classList.add('conflict');
+                            addLog(`❌ 尝试 ${action.num + 1} 在 (${action.i+1},${action.j+1}) 冲突`);
+                            setTimeout(() => {
+                                if (board[action.i][action.j] === '.') {
+                                    tryCell.textContent = '';
+                                    tryCell.classList.remove('conflict');
+                                }
+                            }, 600);
+                        } else {
+                            tryCell.classList.add('success');
+                            addLog(`✅ 尝试 ${action.num + 1} 在 (${action.i+1},${action.j+1}) 合法`);
+                        }
+                        break;
+
+                    case ACTION.SUCCESS:
+                        addLog(`🎉 格子 (${action.i+1},${action.j+1}) 确定为 ${action.num + 1}`);
+                        break;
+
+                    case ACTION.BACKTRACK:
+                        const backCell = getCell(action.i, action.j);
+                        backCell.textContent = '';
+                        backCell.classList.remove('success');
+                        addLog(`🔙 回溯：撤销 (${action.i+1},${action.j+1}) 的 ${action.num + 1}`);
+                        break;
+
+                    case ACTION.FINISH:
+                        addLog("✨ 数独求解完成！");
+                        document.querySelectorAll('.cell').forEach(cell => {
+                            if (!cell.classList.contains('fixed')) {
+                                cell.style.animation = 'pulse 1s 1';
+                            }
+                        });
+                        isSolving = false;
+                        updateControlButtons();
+                        return;
+                }
+            };
+
+            handleAction();
+
+            if (isStepMode) {
+                isStepMode = false;
+                isPaused = true;
+                updateControlButtons();
+            } else {
+                animationTimeout = setTimeout(playNextAnimation, parseInt(speedSlider.value));
+            }
+        }
+
+        // 更新按钮状态
+        function updateControlButtons() {
+            startBtn.disabled = isSolving && !isPaused;
+            pauseBtn.disabled = !isSolving;
+            stepBtn.disabled = !isSolving;
+            pauseBtn.textContent = isPaused ? '▶️ 继续' : '⏸️ 暂停';
+        }
+
+        // 控制函数
+        function startSolving() {
+            if (isSolving) return;
+            isSolving = true;
+            isPaused = false;
+            isStepMode = false;
+            board = initialBoard.map(row => [...row]);
+            createGrid();
+            initUsed();
+            solveWithAnimation();
+            playNextAnimation();
+            updateControlButtons();
+        }
+
+        function togglePause() {
+            if (!isSolving) return;
+            isPaused = !isPaused;
+            if (!isPaused) {
+                playNextAnimation();
+            }
+            updateControlButtons();
+        }
+
+        function stepForward() {
+            if (!isSolving) return;
+            isPaused = true;
+            isStepMode = true;
+            playNextAnimation();
+            updateControlButtons();
+        }
+
+        function resetBoard() {
+            if (animationTimeout) clearTimeout(animationTimeout);
+            isSolving = false;
+            isPaused = false;
+            isStepMode = false;
+            board = initialBoard.map(row => [...row]);
+            createGrid();
+            currentStep = 0;
+            stepCount.textContent = '0';
+            logArea.innerHTML = '';
+            addLog("数独已重置");
+            updateControlButtons();
+        }
+
+        // 事件监听
+        startBtn.addEventListener('click', startSolving);
+        pauseBtn.addEventListener('click', togglePause);
+        stepBtn.addEventListener('click', stepForward);
+        resetBtn.addEventListener('click', resetBoard);
+        speedSlider.addEventListener('input', () => {
+            speedValue.textContent = `${speedSlider.value}ms`;
+        });
+
+        // 初始化
+        board = initialBoard.map(row => [...row]);
+        createGrid();
+        addLog("准备就绪！点击「开始」观看回溯算法动画演示。");
+        updateControlButtons();
+    </script>
+</body>
+</html>
