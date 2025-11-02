@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>出栈序列生成动画 - 回溯算法可视化</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
+            color: #333;
+            padding: 20px;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .visualization-area {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+
+        .section {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            text-align: center;
+            min-width: 200px;
+            flex: 1;
+        }
+
+        .section h3 {
+            margin-top: 0;
+            color: #e74c3c;
+            font-size: 18px;
+        }
+
+        /* 输入队列：水平 */
+        .input-queue {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .input-item {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ffeaa7;
+            border: 2px solid #fdcb6e;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .input-item.highlight {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px #fdcb6e;
+        }
+
+        /* 栈：垂直，顶部在上 */
+        .stack {
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: center;
+            gap: 8px;
+            margin-top: 15px;
+            min-height: 150px;
+            justify-content: flex-end;
+        }
+
+        .stack-item {
+            width: 60px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #74b9ff;
+            border: 2px solid #0984e3;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+
+        .stack-item.top {
+            background: #00b894;
+            border-color: #00a085;
+            transform: scale(1.05);
+            box-shadow: 0 0 12px rgba(0,184,148,0.5);
+        }
+
+        /* 输出序列：水平 */
+        .output-sequence {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+            min-height: 60px;
+        }
+
+        .output-item {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #55efc4;
+            border: 2px solid #00b894;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .output-item.new {
+            animation: popIn 0.6s ease;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* 控制面板 */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            padding: 20px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            width: 100%;
+        }
+
+        button {
+            background: #6c5ce7;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            min-width: 100px;
+        }
+
+        button:hover:not(:disabled) {
+            background: #a29bfe;
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f7f7f7;
+            padding: 10px 15px;
+            border-radius: 20px;
+        }
+
+        .log-area {
+            width: 100%;
+            max-height: 180px;
+            overflow-y: auto;
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .results-list {
+            width: 100%;
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .results-list h3 {
+            color: #e74c3c;
+            margin-top: 0;
+        }
+
+        .sequence-item {
+            display: inline-block;
+            margin: 5px;
+            padding: 8px 15px;
+            background: #ffeaa7;
+            border-radius: 20px;
+            font-weight: bold;
+            border: 1px solid #fdcb6e;
+        }
+
+        h1 {
+            text-align: center;
+            color: #e74c3c;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+        }
+
+        p {
+            text-align: center;
+            max-width: 700px;
+            margin-bottom: 20px;
+            color: #636e72;
+        }
+    </style>
+</head>
+<body>
+    <h1>📦 出栈序列生成动画</h1>
+    <p>可视化回溯算法：探索所有 1,2,3 的合法出栈顺序（共 5 种）</p>
+
+    <div class="container">
+        <div class="visualization-area">
+            <div class="section">
+                <h3>📥 输入队列</h3>
+                <div class="input-queue" id="input-queue"></div>
+            </div>
+
+            <div class="section">
+                <h3>🧱 栈 (Stack)</h3>
+                <div class="stack" id="stack"></div>
+            </div>
+
+            <div class="section">
+                <h3>📤 输出序列</h3>
+                <div class="output-sequence" id="output-sequence"></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="start-btn">▶️ 开始生成</button>
+            <button id="pause-btn" disabled>⏸️ 暂停</button>
+            <button id="step-btn" disabled>⏭️ 单步</button>
+            <button id="reset-btn">🔄 重置</button>
+            <div class="speed-control">
+                <label>速度:</label>
+                <input type="range" id="speed-slider" min="300" max="2000" value="1000" step="100">
+                <span id="speed-value">1000ms</span>
+            </div>
+        </div>
+
+        <div class="log-area" id="log-area">
+            <!-- 日志将在这里动态生成 -->
+        </div>
+
+        <div class="results-list">
+            <h3>✅ 所有合法出栈序列</h3>
+            <div id="results-container"></div>
+        </div>
+    </div>
+
+    <script>
+        // 初始输入序列
+        const INITIAL_INPUT = [1, 2, 3];
+        let currentInput = [];
+        let currentStack = [];
+        let currentOutput = [];
+        let allResults = [];
+
+        // DOM 元素
+        const inputQueueEl = document.getElementById('input-queue');
+        const stackEl = document.getElementById('stack');
+        const outputSeqEl = document.getElementById('output-sequence');
+        const logArea = document.getElementById('log-area');
+        const resultsContainer = document.getElementById('results-container');
+        const startBtn = document.getElementById('start-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const stepBtn = document.getElementById('step-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const speedSlider = document.getElementById('speed-slider');
+        const speedValue = document.getElementById('speed-value');
+
+        // 状态控制
+        let isRunning = false;
+        let isPaused = false;
+        let isStepMode = false;
+        let animationQueue = [];
+        let animationTimeout = null;
+
+        // 操作类型
+        const ACTION = {
+            PUSH: 'push',
+            POP: 'pop',
+            UNDO_PUSH: 'undo_push',
+            UNDO_POP: 'undo_pop',
+            ADD_RESULT: 'add_result',
+            FINISH: 'finish'
+        };
+
+        // 初始化显示
+        function renderState() {
+            // 渲染输入队列
+            inputQueueEl.innerHTML = '';
+            currentInput.forEach((num, idx) => {
+                const el = document.createElement('div');
+                el.className = 'input-item';
+                el.textContent = num;
+                if (idx === 0) el.classList.add('highlight'); // 队首高亮
+                inputQueueEl.appendChild(el);
+            });
+
+            // 渲染栈（顶部在上）
+            stackEl.innerHTML = '';
+            currentStack.forEach((num, idx) => {
+                const el = document.createElement('div');
+                el.className = 'stack-item';
+                el.textContent = num;
+                if (idx === currentStack.length - 1) el.classList.add('top'); // 栈顶高亮
+                stackEl.appendChild(el);
+            });
+
+            // 渲染输出序列
+            outputSeqEl.innerHTML = '';
+            currentOutput.forEach(num => {
+                const el = document.createElement('div');
+                el.className = 'output-item';
+                el.textContent = num;
+                outputSeqEl.appendChild(el);
+            });
+        }
+
+        // 添加日志
+        function addLog(message) {
+            const logEntry = document.createElement('div');
+            logEntry.textContent = message;
+            logEntry.style.padding = '4px 0';
+            logArea.appendChild(logEntry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // 添加结果到展示区
+        function addResultToDisplay(sequence) {
+            const seqStr = sequence.join(' ');
+            const existing = Array.from(resultsContainer.querySelectorAll('.sequence-item'))
+                .map(el => el.textContent);
+            if (!existing.includes(seqStr)) {
+                const item = document.createElement('div');
+                item.className = 'sequence-item';
+                item.textContent = seqStr;
+                resultsContainer.appendChild(item);
+            }
+        }
+
+        // 回溯算法：生成所有出栈序列
+        function generateSequences() {
+            animationQueue = [];
+            allResults = [];
+            resultsContainer.innerHTML = '';
+            logArea.innerHTML = '';
+            addLog("开始生成所有合法出栈序列...");
+
+            function dfs(input, stack, output) {
+                // 终止条件：输入为空且栈为空
+                if (input.length === 0 && stack.length === 0) {
+                    const result = [...output];
+                    allResults.push(result);
+                    animationQueue.push({ type: ACTION.ADD_RESULT, sequence: result });
+                    return;
+                }
+
+                // 选择1：如果输入非空，可以 Push
+                if (input.length > 0) {
+                    const next = input[0];
+                    // Push 操作
+                    animationQueue.push({ 
+                        type: ACTION.PUSH, 
+                        value: next,
+                        fromInput: [...input],
+                        toStack: [...stack, next],
+                        output: [...output]
+                    });
+
+                    dfs(
+                        input.slice(1),
+                        [...stack, next],
+                        [...output]
+                    );
+
+                    // 撤销 Push（回溯）
+                    animationQueue.push({ 
+                        type: ACTION.UNDO_PUSH, 
+                        value: next,
+                        fromInput: [...input],
+                        toStack: [...stack],
+                        output: [...output]
+                    });
+                }
+
+                // 选择2：如果栈非空，可以 Pop
+                if (stack.length > 0) {
+                    const top = stack[stack.length - 1];
+                    // Pop 操作
+                    animationQueue.push({ 
+                        type: ACTION.POP, 
+                        value: top,
+                        fromInput: [...input],
+                        stack: [...stack.slice(0, -1)],
+                        toOutput: [...output, top]
+                    });
+
+                    dfs(
+                        [...input],
+                        stack.slice(0, -1),
+                        [...output, top]
+                    );
+
+                    // 撤销 Pop（回溯）
+                    animationQueue.push({ 
+                        type: ACTION.UNDO_POP, 
+                        value: top,
+                        fromInput: [...input],
+                        stack: [...stack],
+                        toOutput: [...output]
+                    });
+                }
+            }
+
+            dfs([...INITIAL_INPUT], [], []);
+            animationQueue.push({ type: ACTION.FINISH });
+        }
+
+        // 执行单个动画步骤
+        function executeAnimationStep(action) {
+            switch (action.type) {
+                case ACTION.PUSH:
+                    currentInput = action.fromInput;
+                    currentStack = action.toStack;
+                    currentOutput = action.output;
+                    addLog(`📥 Push ${action.value} 入栈`);
+                    break;
+
+                case ACTION.POP:
+                    currentInput = action.fromInput;
+                    currentStack = action.stack;
+                    currentOutput = action.toOutput;
+                    addLog(`📤 Pop ${action.value} 出栈 → 输出`);
+                    // 为新输出项添加动画类
+                    setTimeout(() => {
+                        const items = outputSeqEl.querySelectorAll('.output-item');
+                        if (items.length > 0) {
+                            items[items.length - 1].classList.add('new');
+                        }
+                    }, 50);
+                    break;
+
+                case ACTION.UNDO_PUSH:
+                    currentInput = action.fromInput;
+                    currentStack = action.toStack;
+                    currentOutput = action.output;
+                    addLog(`↩️ 回溯：撤销 Push ${action.value}`);
+                    break;
+
+                case ACTION.UNDO_POP:
+                    currentInput = action.fromInput;
+                    currentStack = action.stack;
+                    currentOutput = action.toOutput;
+                    addLog(`↩️ 回溯：撤销 Pop ${action.value}`);
+                    break;
+
+                case ACTION.ADD_RESULT:
+                    addResultToDisplay(action.sequence);
+                    addLog(`✅ 找到序列: ${action.sequence.join(' ')}`);
+                    break;
+
+                case ACTION.FINISH:
+                    addLog(`✨ 完成！共找到 ${allResults.length} 种合法序列`);
+                    break;
+            }
+            renderState();
+        }
+
+        // 播放下一动画
+        function playNextAnimation() {
+            if (!isRunning || isPaused || animationQueue.length === 0) return;
+
+            const action = animationQueue.shift();
+            executeAnimationStep(action);
+
+            if (action.type === ACTION.FINISH) {
+                isRunning = false;
+                updateButtons();
+                return;
+            }
+
+            if (isStepMode) {
+                isStepMode = false;
+                isPaused = true;
+                updateButtons();
+            } else {
+                const delay = parseInt(speedSlider.value);
+                animationTimeout = setTimeout(playNextAnimation, delay);
+            }
+        }
+
+        // 更新按钮状态
+        function updateButtons() {
+            startBtn.disabled = isRunning && !isPaused;
+            pauseBtn.disabled = !isRunning;
+            stepBtn.disabled = !isRunning;
+            pauseBtn.textContent = isPaused ? '▶️ 继续' : '⏸️ 暂停';
+        }
+
+        // 控制函数
+        function startGeneration() {
+            if (isRunning) return;
+            isRunning = true;
+            isPaused = false;
+            isStepMode = false;
+            currentInput = [...INITIAL_INPUT];
+            currentStack = [];
+            currentOutput = [];
+            renderState();
+            generateSequences();
+            playNextAnimation();
+            updateButtons();
+        }
+
+        function togglePause() {
+            if (!isRunning) return;
+            isPaused = !isPaused;
+            if (!isPaused) {
+                playNextAnimation();
+            }
+            updateButtons();
+        }
+
+        function stepForward() {
+            if (!isRunning) return;
+            isPaused = true;
+            isStepMode = true;
+            playNextAnimation();
+            updateButtons();
+        }
+
+        function resetAll() {
+            if (animationTimeout) clearTimeout(animationTimeout);
+            isRunning = false;
+            isPaused = false;
+            isStepMode = false;
+            currentInput = [...INITIAL_INPUT];
+            currentStack = [];
+            currentOutput = [];
+            allResults = [];
+            resultsContainer.innerHTML = '';
+            logArea.innerHTML = '';
+            addLog("已重置，准备生成出栈序列");
+            renderState();
+            updateButtons();
+        }
+
+        // 事件监听
+        startBtn.addEventListener('click', startGeneration);
+        pauseBtn.addEventListener('click', togglePause);
+        stepBtn.addEventListener('click', stepForward);
+        resetBtn.addEventListener('click', resetAll);
+        speedSlider.addEventListener('input', () => {
+            speedValue.textContent = `${speedSlider.value}ms`;
+        });
+
+        // 初始化
+        resetAll();
+    </script>
+</body>
+</html>
